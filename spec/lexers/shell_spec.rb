@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*- #
+# frozen_string_literal: true
 
 describe Rouge::Lexers::Shell do
   let(:subject) { Rouge::Lexers::Shell.new }
@@ -32,49 +33,6 @@ describe Rouge::Lexers::Shell do
     assert { tokens.last[0] == Token['Comment'] }
   end
 
-  it 'parses a basic shell string with a prompt' do
-    # Single '$' prompt
-    tokens = subject.lex('$ foo=bar').to_a
-    assert { tokens.size == 4 }
-    assert { tokens.first[0] == Token['Generic.Prompt'] }
-    # Single '>' prompt
-    tokens = subject.lex('> foo=bar').to_a
-    assert { tokens.size == 4 }
-    assert { tokens.first[0] == Token['Generic.Prompt'] }
-    # Single '%' prompt
-    tokens = subject.lex('% foo=bar').to_a
-    assert { tokens.size == 4 }
-    assert { tokens.first[0] == Token['Generic.Prompt'] }
-    # Complex prompt with trailing '$'
-    tokens = subject.lex('me@host:~$ foo=bar').to_a
-    assert { tokens.size == 4 }
-    assert { tokens.first[0] == Token['Generic.Prompt'] }
-    # Complex prompt with trailing '>'
-    tokens = subject.lex('me@host:~> foo=bar').to_a
-    assert { tokens.size == 4 }
-    assert { tokens.first[0] == Token['Generic.Prompt'] }
-    # Complex prompt with trailing '%'
-    tokens = subject.lex('me@host:~% foo=bar').to_a
-    assert { tokens.size == 4 }
-    assert { tokens.first[0] == Token['Generic.Prompt'] }
-    # Complex prompt with trailing '#'
-    tokens = subject.lex('root@host:/root# foo=bar').to_a
-    assert { tokens.size == 4 }
-    assert { tokens.first[0] == Token['Generic.Prompt'] }
-  end
-
-  it 'does not confuse a prompt with a variable' do
-    tokens = subject.lex('$foo').to_a
-    assert { tokens.size == 1 }
-    assert { tokens.first[0] == Token['Name.Variable'] }
-  end
-
-  it 'does not confuse a prompt with a comment' do
-    tokens = subject.lex('# commentaire').to_a
-    assert { tokens.size == 1 }
-    assert { tokens.first[0] == Token['Comment'] }
-  end
-
   describe 'guessing' do
     include Support::Guessing
 
@@ -83,6 +41,7 @@ describe Rouge::Lexers::Shell do
       assert_guess :filename => 'foo.zsh'
       assert_guess :filename => 'foo.ksh'
       assert_guess :filename => 'foo.bash'
+      assert_guess :filename => 'APKBUILD'
       assert_guess :filename => 'PKGBUILD'
       deny_guess   :filename => 'foo'
     end

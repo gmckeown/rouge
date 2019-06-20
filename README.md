@@ -1,7 +1,7 @@
 # Rouge
 
-[![Build Status](https://secure.travis-ci.org/jneen/rouge.png)](http://travis-ci.org/jneen/rouge)
-[![Gem Version](https://badge.fury.io/rb/rouge.png)](http://badge.fury.io/rb/rouge)
+[![Build Status](https://secure.travis-ci.org/rouge-ruby/rouge.svg)](https://travis-ci.org/rouge-ruby/rouge)
+[![Gem Version](https://badge.fury.io/rb/rouge.svg)](https://rubygems.org/gems/rouge)
 
 [rouge]: http://rouge.jneen.net/
 
@@ -9,7 +9,7 @@
 
 If you'd like to help out with this project, assign yourself something from the [issues][] page, and send me a pull request (even if it's not done yet!).  Bonus points for feature branches.
 
-[issues]: https://github.com/jneen/rouge/issues "Help Out"
+[issues]: https://github.com/rouge-ruby/rouge/issues "Help Out"
 [pygments]: http://pygments.org/ "Pygments"
 
 ## Usage
@@ -43,9 +43,9 @@ Builtin formatters include:
 * `Rouge::Formatters::HTMLInline.new(theme)` - will render your code with no class names, but
   instead inline the styling options into the `style=` attribute. This is good for emails and
   other systems where CSS support is minimal.
-* `Rouge::Formatters::HTMLLinewise.new(formatter, class_format: 'line-%i')`
+* `Rouge::Formatters::HTMLLinewise.new(formatter, class: 'line-%i')`
   This formatter will split your code into lines, each contained in its own div. The
-  `class_format` option will be used to add a class name to the div, given the line
+  `class` option will be used to add a class name to the div, given the line
   number.
 * `Rouge::Formatters::HTMLPygments.new(formatter, css_class='codehilite')`
   wraps the given formatter with div wrappers generally expected by stylesheets designed for
@@ -63,6 +63,8 @@ Builtin formatters include:
     * `line_numbers: false` - use an HTMLTable formatter
     * `wrap: true` - use an HTMLPygments wrapper
     * `css_class: 'codehilite'` - a CSS class to use for the pygments wrapper
+* `Rouge::Formatters::Terminal256.new(theme)`
+  * `theme` must be an instnce of `Rouge::Theme`, or a `Hash` structure with `:theme` entry
 
 #### Lexer options
 ##### debug: false
@@ -73,7 +75,7 @@ Allows you to specify which language the template is inside
 
 #### CSS theme options
 ##### scope: '.highlight'
-CSS selector that styles are applied to, e.g. `Rouge::Themes::Monokai.mode(:sublime).render(scope: 'code')`
+CSS selector that styles are applied to, e.g. `Rouge::Themes::MonokaiSublime.render(scope: 'code')`
 
 Rouge aims to be simple to extend, and to be a drop-in replacement for pygments, with the same quality of output. Also, Rouge ships with a `rougify` command which allows you to easily highlight files in your terminal:
 
@@ -84,7 +86,7 @@ $ rougify style monokai.sublime > syntax.css
 
 ### Advantages to pygments.rb
 * No need to [spawn Python processes](https://github.com/tmm1/pygments.rb).
-* We're faster in [almost every measure](https://github.com/jneen/rouge/pull/41#issuecomment-223751572)
+* We're faster in [almost every measure](https://github.com/rouge-ruby/rouge/pull/41#issuecomment-223751572)
 
 ### Advantages to CodeRay
 * The HTML output from Rouge is fully compatible with stylesheets designed for pygments.
@@ -122,13 +124,23 @@ Rouge is only for UTF-8 strings.  If you'd like to highlight a string with a dif
 
 ## Contributing
 
+### Bug reports
+
+Rouge uses GitHub issues to report bugs. You can [choose][issue-chooser] from one of our templates or create a custom issue. Issues that have not been active for a year are automatically closed by GitHub's [Probot][].
+
+[issue-chooser]: https://github.com/rouge-ruby/rouge/issues/new/choose "Issue Template Chooser"
+[Probot]: https://probot.github.io "GitHub's Probot"
+
 ### Installing Ruby
 
-If you're here to implement a lexer for your awesome language, there's a good chance you don't already have a ruby development environment set up.  Follow the [instructions on the wiki](https://github.com/jneen/rouge/wiki/Setting-up-Ruby) to get up and running.  If you have trouble getting set up, let me know - I'm always happy to help.
+If you're here to implement a lexer for your awesome language, there's a good chance you don't already have a ruby development environment set up.  Follow the [instructions on the wiki](https://github.com/rouge-ruby/rouge/wiki/Setting-up-Ruby) to get up and running.  If you have trouble getting set up, let me know - I'm always happy to help.
 
 ### Run the tests
 
-You can test the core of Rouge simply by running `rake` (no `bundle exec` required).  It's also set up with `guard`, if you like.
+You can test the core of Rouge simply by running `rake` (no `bundle exec` required), or `rake spec TEST=spec/xxx_spec.rb`
+to run a single test file.
+
+It's also set up with `guard`, if you like.
 
 To test a lexer visually, run `rackup` from the root and go to `localhost:9292/#{some_lexer}` where `some_lexer` is the tag or an alias of a lexer you'd like to test.  If you add `?debug=1`, helpful debugging info will be printed on stdout.
 
@@ -136,88 +148,19 @@ To test a lexer visually, run `rackup` from the root and go to `localhost:9292/#
 
 is at http://rubydoc.info/gems/rouge/frames.
 
-### Using the lexer DSL
+### Developing lexers
 
-You can probably learn a lot just by reading through the existing lexers.  Basically, a lexer consists of a collection of states, each of which has several rules.  A rule consists of a regular expression and an action, which yields tokens and manipulates the state stack.  Each rule in the state on top of the stack is tried *in order* until a match is found, at which point the action is run, the match consumed from the stream, and the process repeated with the new lexer on the top of the stack.  Each lexer has a special state called `:root`, and the initial state stack consists of just this state.
+We have [a guide][lexer-dev-doc] on lexer development in the documentation but you'll also learn a lot by reading through the existing lexers. 
 
-Here's how you might use it:
-
-``` ruby
-class MyLexer < Rouge::RegexLexer
-  state :root do
-    # the "easy way"
-
-    # simple rules
-    rule /0x[0-9a-f]+/, Num::Hex
-
-    # simple state stack manipulation
-    rule /{-/, Comment, :next_state
-    rule /-}/, Comment, :pop!
-
-    # the "flexible way"
-    rule /abc/ do |m|
-      # m is the match, for accessing match groups manually
-
-      # you can do the following things:
-      pop!
-      push :another_state
-      push # assumed to be the current state
-      state? :some_state # check if the current state is :some_state
-      in_state? :some_state # check if :some_state is in the state stack
-
-      # yield a token.  if no second argument is supplied, the value is
-      # taken to be the whole match.
-      # The sum of all the tokens yielded must be equivalent to the whole
-      # match - otherwise characters will go missing from the user's input.
-      token Generic::Output, m[0]
-
-      # calls SomeOtherLexer.lex(str) and yields its output.  See the
-      # HTML lexer for a nice example of this.
-      # if no second argument is supplied, it is assumed to be the whole
-      # match string.
-      delegate SomeOtherLexer, str
-
-      # the context object is the lexer itself, so you can stash state here
-      @count ||= 0
-      @count += 1
-
-      # advanced: push a dynamically created anonymous state
-      push do
-        rule /.../, Generic::Output
-      end
-    end
-
-    rule /(\w+)(:)/ do
-      # "groups" yields the matched groups in order
-      groups Name::Label, Punctuation
-    end
-  end
-
-  start do
-    # this is run whenever a fresh lex is started
-  end
-end
-```
-
-If you're creating a lexer that's very similar to a different lexer, you can use subclassing (see C/C++/ObjC and also QML/Javascript for examples):
-
-``` ruby
-class MyLexer < OtherLexer
-  # independent states
-  state :my_state do ... end
-
-  # override states
-  state :your_state do ... end
-
-  # prepend rules to states
-  prepend :parent_state do ... end
-
-  # append rules to states
-  append :parent_state do ... end
-end
-```
+[lexer-dev-doc]: https://www.rubydoc.info/github/rouge-ruby/rouge/file/docs/LexerDevelopment.md
 
 Please don't submit lexers that are largely copy-pasted from other files.
+
+## Versioning
+
+Rouge uses [Semantic Versioning 2.0.0][sv2].
+
+[sv2]: http://semver.org/
 
 ## Tips
 

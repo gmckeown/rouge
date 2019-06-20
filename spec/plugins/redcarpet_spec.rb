@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*- #
+# frozen_string_literal: true
 
 require 'rouge/plugins/redcarpet'
 describe Rouge::Plugins::Redcarpet do
@@ -33,11 +34,12 @@ foo=1
   it 'guesses' do
     result = markdown.render <<-mkd
 ``` guess
-<xml>an xml code block</xml>
+#!/usr/bin/env ruby
+puts "hello, world"
 ```
     mkd
 
-    assert { result.include?(%(<pre class="highlight xml"><code>)) }
+    assert { result.include?(%(<pre class="highlight ruby"><code>)) }
   end
 
   it 'passes options' do

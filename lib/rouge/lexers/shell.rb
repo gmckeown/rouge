@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*- #
+# frozen_string_literal: true
 
 module Rouge
   module Lexers
@@ -9,12 +10,12 @@ module Rouge
       tag 'shell'
       aliases 'bash', 'zsh', 'ksh', 'sh'
       filenames '*.sh', '*.bash', '*.zsh', '*.ksh',
-                '.bashrc', '.zshrc', '.kshrc', '.profile', 'PKGBUILD'
+                '.bashrc', '.zshrc', '.kshrc', '.profile', 'APKBUILD', 'PKGBUILD'
 
       mimetypes 'application/x-sh', 'application/x-shellscript'
 
-      def self.analyze_text(text)
-        text.shebang?(/(ba|z|k)?sh/) ? 1 : 0
+      def self.detect?(text)
+        return true if text.shebang?(/(ba|z|k)?sh/)
       end
 
       KEYWORDS = %w(
@@ -24,129 +25,160 @@ module Rouge
 
       BUILTINS = %w(
         alias bg bind break builtin caller cd command compgen
-        complete declare dirs disown echo enable eval exec exit
-        export false fc fg getopts hash help history jobs kill let
-        local logout popd printf pushd pwd read readonly set shift
-        shopt source suspend test time times trap true type typeset
-        ulimit umask unalias unset wait
+        complete declare dirs disown enable eval exec exit
+        export false fc fg getopts hash help history jobs let
+        local logout mapfile popd pushd pwd read readonly set
+        shift shopt source suspend test time times trap true type
+        typeset ulimit umask unalias unset wait
+
+        cat tac nl od base32 base64 fmt pr fold head tail split csplit
+        wc sum cksum b2sum md5sum sha1sum sha224sum sha256sum sha384sum
+        sha512sum sort shuf uniq comm ptx tsort cut paste join tr expand
+        unexpand ls dir vdir dircolors cp dd install mv rm shred link ln
+        mkdir mkfifo mknod readlink rmdir unlink chown chgrp chmod touch
+        df du stat sync truncate echo printf yes expr tee basename dirname
+        pathchk mktemp realpath pwd stty printenv tty id logname whoami
+        groups users who date arch nproc uname hostname hostid uptime chcon
+        runcon chroot env nice nohup stdbuf timeout kill sleep factor numfmt
+        seq tar grep sudo awk sed gzip gunzip
       ).join('|')
 
       state :basic do
-        rule /#.*$/, Comment
+        rule %r/#.*$/, Comment
 
-        rule /\b(#{KEYWORDS})\s*\b/, Keyword
-        rule /\bcase\b/, Keyword, :case
+        rule %r/\b(#{KEYWORDS})\s*\b/, Keyword
+        rule %r/\bcase\b/, Keyword, :case
 
-        rule /\b(#{BUILTINS})\s*\b(?!\.)/, Name::Builtin
+        rule %r/\b(#{BUILTINS})\s*\b(?!(\.|-))/, Name::Builtin
+        rule %r/[.](?=\s)/, Name::Builtin
 
-        rule /^\S*[\$%>#] +/, Generic::Prompt
-
-        rule /(\b\w+)(=)/ do |m|
+        rule %r/(\b\w+)(=)/ do |m|
           groups Name::Variable, Operator
         end
 
-        rule /[\[\]{}()=]/, Operator
-        rule /&&|\|\|/, Operator
+        rule %r/[\[\]{}()!=>]/, Operator
+        rule %r/&&|\|\|/, Operator
 
-        rule /<<</, Operator # here-string
-        rule /<<-?\s*(\'?)\\?(\w+)\1/ do |m|
-          lsh = Str::Heredoc
-          token lsh
-          heredocstr = Regexp.escape(m[2])
+        # here-string
+        rule %r/<<</, Operator
 
-          push do
-            rule /\s*#{heredocstr}\s*\n/, lsh, :pop!
-            rule /.*?\n/, lsh
-          end
+        rule %r/(<<-?)(\s*)(\'?)(\\?)(\w+)(\3)/ do |m|
+          groups Operator, Text, Str::Heredoc, Str::Heredoc, Name::Constant, Str::Heredoc
+          @heredocstr = Regexp.escape(m[5])
+          push :heredoc
         end
       end
+
+      state :heredoc do
+        rule %r/\n/, Str::Heredoc, :heredoc_nl
+        rule %r/[^$\n]+/, Str::Heredoc
+        mixin :interp
+        rule %r/[$]/, Str::Heredoc
+      end
+
+      state :heredoc_nl do
+        rule %r/\s*(\w+)\s*\n/ do |m|
+          if m[1] == @heredocstr
+            token Name::Constant
+            pop! 2
+          else
+            token Str::Heredoc
+          end
+        end
+
+        rule(//) { pop! }
+      end
+
 
       state :double_quotes do
         # NB: "abc$" is literally the string abc$.
         # Here we prevent :interp from interpreting $" as a variable.
-        rule /(?:\$#?)?"/, Str::Double, :pop!
+        rule %r/(?:\$#?)?"/, Str::Double, :pop!
         mixin :interp
-        rule /[^"`\\$]+/, Str::Double
+        rule %r/[^"`\\$]+/, Str::Double
       end
 
       state :ansi_string do
-        rule /\\./, Str::Escape
-        rule /[^\\']+/, Str::Single
+        rule %r/\\./, Str::Escape
+        rule %r/[^\\']+/, Str::Single
         mixin :single_quotes
       end
 
       state :single_quotes do
-        rule /'/, Str::Single, :pop!
-        rule /[^']+/, Str::Single
+        rule %r/'/, Str::Single, :pop!
+        rule %r/[^']+/, Str::Single
       end
 
       state :data do
-        rule /\s+/, Text
-        rule /\\./, Str::Escape
-        rule /\$?"/, Str::Double, :double_quotes
-        rule /\$'/, Str::Single, :ansi_string
+        rule %r/\s+/, Text
+        rule %r/\\./, Str::Escape
+        rule %r/\$?"/, Str::Double, :double_quotes
+        rule %r/\$'/, Str::Single, :ansi_string
 
         # single quotes are much easier than double quotes - we can
         # literally just scan until the next single quote.
         # POSIX: Enclosing characters in single-quotes ( '' )
         # shall preserve the literal value of each character within the
         # single-quotes. A single-quote cannot occur within single-quotes.
-        rule /'/, Str::Single, :single_quotes
+        rule %r/'/, Str::Single, :single_quotes
 
-        rule /\*/, Keyword
+        rule %r/\*/, Keyword
 
-        rule /;/, Text
-        rule /[^=\*\s{}()$"'`\\<]+/, Text
-        rule /\d+(?= |\Z)/, Num
-        rule /</, Text
+        rule %r/;/, Punctuation
+
+        rule %r/--?[\w-]+/, Name::Tag
+        rule %r/[^=\*\s{}()$"'`;\\<]+/, Text
+        rule %r/\d+(?= |\Z)/, Num
+        rule %r/</, Text
         mixin :interp
       end
 
       state :curly do
-        rule /}/, Keyword, :pop!
-        rule /:-/, Keyword
-        rule /[a-zA-Z0-9_]+/, Name::Variable
-        rule /[^}:"`'$]+/, Punctuation
+        rule %r/}/, Keyword, :pop!
+        rule %r/:-/, Keyword
+        rule %r/[a-zA-Z0-9_]+/, Name::Variable
+        rule %r/[^}:"`'$]+/, Punctuation
         mixin :root
       end
 
       state :paren do
-        rule /\)/, Keyword, :pop!
+        rule %r/\)/, Keyword, :pop!
         mixin :root
       end
 
       state :math do
-        rule /\)\)/, Keyword, :pop!
-        rule %r([-+*/%^|&]|\*\*|\|\|), Operator
-        rule /\d+(#\w+)?/, Num
+        rule %r/\)\)/, Keyword, :pop!
+        rule %r([-+*/%^|&!]|\*\*|\|\|), Operator
+        rule %r/\d+(#\w+)?/, Num
         mixin :root
       end
 
       state :case do
-        rule /\besac\b/, Keyword, :pop!
-        rule /\|/, Punctuation
-        rule /\)/, Punctuation, :case_stanza
+        rule %r/\besac\b/, Keyword, :pop!
+        rule %r/\|/, Punctuation
+        rule %r/\)/, Punctuation, :case_stanza
         mixin :root
       end
 
       state :case_stanza do
-        rule /;;/, Punctuation, :pop!
+        rule %r/;;/, Punctuation, :pop!
         mixin :root
       end
 
       state :backticks do
-        rule /`/, Str::Backtick, :pop!
+        rule %r/`/, Str::Backtick, :pop!
         mixin :root
       end
 
       state :interp do
-        rule /\\$/, Str::Escape # line continuation
-        rule /\\./, Str::Escape
-        rule /\$\(\(/, Keyword, :math
-        rule /\$\(/, Keyword, :paren
-        rule /\${#?/, Keyword, :curly
-        rule /`/, Str::Backtick, :backticks
-        rule /\$#?(\w+|.)/, Name::Variable
+        rule %r/\\$/, Str::Escape # line continuation
+        rule %r/\\./, Str::Escape
+        rule %r/\$\(\(/, Keyword, :math
+        rule %r/\$\(/, Keyword, :paren
+        rule %r/\${#?/, Keyword, :curly
+        rule %r/`/, Str::Backtick, :backticks
+        rule %r/\$#?(\w+|.)/, Name::Variable
+        rule %r/\$[*@]/, Name::Variable
       end
 
       state :root do

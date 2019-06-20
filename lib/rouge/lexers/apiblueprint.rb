@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Rouge
   module Lexers
     load_lexer 'markdown.rb'
@@ -10,10 +12,6 @@ module Rouge
       aliases 'apiblueprint', 'apib'
       filenames '*.apib'
       mimetypes 'text/vnd.apiblueprint'
-
-      def self.analyze_text(text)
-        return 1 if text.start_with?('FORMAT: 1A\n')
-      end
 
       prepend :root do
         # Metadata

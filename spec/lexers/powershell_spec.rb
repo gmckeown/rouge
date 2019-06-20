@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*- #
+# frozen_string_literal: true
 
 describe Rouge::Lexers::Powershell do
   let(:subject) { Rouge::Lexers::Powershell.new }
@@ -11,6 +12,9 @@ describe Rouge::Lexers::Powershell do
     it 'guesses by filename' do
       assert_guess :filename => 'foo.ps1'
       assert_guess :filename => 'foo.psm1'
+      assert_guess :filename => 'foo.psd1'
+      assert_guess :filename => 'foo.psrc'
+      assert_guess :filename => 'foo.pssc'
     end
 
   end

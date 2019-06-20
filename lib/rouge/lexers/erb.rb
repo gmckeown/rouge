@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*- #
+# frozen_string_literal: true
 
 module Rouge
   module Lexers
@@ -10,10 +11,6 @@ module Rouge
       aliases 'eruby', 'rhtml'
 
       filenames '*.erb', '*.erubis', '*.rhtml', '*.eruby'
-
-      def self.analyze_text(text)
-        return 0.4 if text =~ /<%.*%>/
-      end
 
       def initialize(opts={})
         @ruby_lexer = Ruby.new(opts)
@@ -30,24 +27,24 @@ module Rouge
       close = /%%>|-%>|%>/
 
       state :root do
-        rule /<%#/, Comment, :comment
+        rule %r/<%#/, Comment, :comment
 
         rule open, Comment::Preproc, :ruby
 
-        rule /.+?(?=#{open})|.+/m do
+        rule %r/.+?(?=#{open})|.+/m do
           delegate parent
         end
       end
 
       state :comment do
         rule close, Comment, :pop!
-        rule /.+(?=#{close})|.+/m, Comment
+        rule %r/.+?(?=#{close})|.+/m, Comment
       end
 
       state :ruby do
         rule close, Comment::Preproc, :pop!
 
-        rule /.+?(?=#{close})|.+/m do
+        rule %r/.+?(?=#{close})|.+/m do
           delegate @ruby_lexer
         end
       end

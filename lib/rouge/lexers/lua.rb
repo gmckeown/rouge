@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*- #
+# frozen_string_literal: true
 
 module Rouge
   module Lexers
@@ -10,14 +11,17 @@ module Rouge
 
       mimetypes 'text/x-lua', 'application/x-lua'
 
+      option :function_highlighting, 'Whether to highlight builtin functions (default: true)'
+      option :disabled_modules, 'builtin modules to disable'
+
       def initialize(opts={})
         @function_highlighting = opts.delete(:function_highlighting) { true }
         @disabled_modules = opts.delete(:disabled_modules) { [] }
         super(opts)
       end
 
-      def self.analyze_text(text)
-        return 1 if text.shebang? 'lua'
+      def self.detect?(text)
+        return true if text.shebang? 'lua'
       end
 
       def self.builtins
@@ -39,7 +43,7 @@ module Rouge
       state :root do
         # lua allows a file to start with a shebang
         rule %r(#!(.*?)$), Comment::Preproc
-        rule //, Text, :base
+        rule %r//, Text, :base
       end
 
       state :base do
@@ -85,7 +89,7 @@ module Rouge
       end
 
       state :function_name do
-        rule /\s+/, Text
+        rule %r/\s+/, Text
         rule %r((?:([A-Za-z_][A-Za-z0-9_]*)(\.))?([A-Za-z_][A-Za-z0-9_]*)) do
           groups Name::Class, Punctuation, Name::Function
           pop!

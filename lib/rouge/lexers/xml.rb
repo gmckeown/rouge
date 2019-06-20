@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*- #
+# frozen_string_literal: true
 
 module Rouge
   module Lexers
@@ -6,30 +7,24 @@ module Rouge
       title "XML"
       desc %q(<desc for="this-lexer">XML</desc>)
       tag 'xml'
-      filenames *%w(*.xml *.xsl *.rss *.xslt *.xsd *.wsdl *.svg)
-      mimetypes *%w(
-        text/xml
-        application/xml
-        image/svg+xml
-        application/rss+xml
-        application/atom+xml
-      )
+      filenames '*.xml', '*.xsl', '*.rss', '*.xslt', '*.xsd', '*.wsdl', '*.svg',
+                '*.plist'
+      mimetypes 'text/xml', 'application/xml', 'image/svg+xml', 
+                'application/rss+xml', 'application/atom+xml'
 
-      def self.analyze_text(text)
-        return 0.9 if text.doctype?
-        return 0.8 if text =~ /\A<\?xml\b/
-        start = text[0..1000]
-        return 0.6 if start =~ %r(<xml\b)
-        return 0.3 if start =~ %r(<.+?>.*?</.+?>)m
+      def self.detect?(text)
+        return false if text.doctype?(/html/)
+        return true if text =~ /\A<\?xml\b/
+        return true if text.doctype?
       end
 
       state :root do
-        rule /[^<&]+/, Text
-        rule /&\S*?;/, Name::Entity
-        rule /<!\[CDATA\[.*?\]\]\>/, Comment::Preproc
-        rule /<!--/, Comment, :comment
-        rule /<\?.*?\?>/, Comment::Preproc
-        rule /<![^>]*>/, Comment::Preproc
+        rule %r/[^<&]+/, Text
+        rule %r/&\S*?;/, Name::Entity
+        rule %r/<!\[CDATA\[.*?\]\]\>/, Comment::Preproc
+        rule %r/<!--/, Comment, :comment
+        rule %r/<\?.*?\?>/, Comment::Preproc
+        rule %r/<![^>]*>/, Comment::Preproc
 
         # open tags
         rule %r(<\s*[\w:.-]+)m, Name::Tag, :tag
@@ -39,20 +34,20 @@ module Rouge
       end
 
       state :comment do
-        rule /[^-]+/m, Comment
-        rule /-->/, Comment, :pop!
-        rule /-/, Comment
+        rule %r/[^-]+/m, Comment
+        rule %r/-->/, Comment, :pop!
+        rule %r/-/, Comment
       end
 
       state :tag do
-        rule /\s+/m, Text
-        rule /[\w.:-]+\s*=/m, Name::Attribute, :attr
+        rule %r/\s+/m, Text
+        rule %r/[\w.:-]+\s*=/m, Name::Attribute, :attr
         rule %r(/?\s*>), Name::Tag, :pop!
       end
 
       state :attr do
-        rule /\s+/m, Text
-        rule /".*?"|'.*?'|[^\s>]+/, Str, :pop!
+        rule %r/\s+/m, Text
+        rule %r/".*?"|'.*?'|[^\s>]+/m, Str, :pop!
       end
     end
   end

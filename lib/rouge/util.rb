@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*- #
+# frozen_string_literal: true
 
 module Rouge
   class InheritableHash < Hash
@@ -7,10 +8,10 @@ module Rouge
     end
 
     def [](k)
-      _sup = super
-      return _sup if own_keys.include?(k)
+      value = super
+      return value if own_keys.include?(k)
 
-      _sup || parent[k]
+      value || parent[k]
     end
 
     def parent

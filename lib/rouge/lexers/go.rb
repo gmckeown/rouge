@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*- #
+# frozen_string_literal: true
 
 module Rouge
   module Lexers
@@ -11,13 +12,9 @@ module Rouge
 
       mimetypes 'text/x-go', 'application/x-go'
 
-      def self.analyze_text(text)
-        return 0
-      end
-
       # Characters
 
-      WHITE_SPACE            = /[\s\t\r\n]+/
+      WHITE_SPACE            = /\s+/
 
       NEWLINE                = /\n/
       UNICODE_CHAR           = /[^\n]/
@@ -152,7 +149,7 @@ module Rouge
         rule(OPERATOR,              Operator)
         rule(SEPARATOR,             Punctuation)
         rule(IDENTIFIER,            Name)
-        rule(WHITE_SPACE,           Other)
+        rule(WHITE_SPACE,           Text)
       end
 
       state :root do

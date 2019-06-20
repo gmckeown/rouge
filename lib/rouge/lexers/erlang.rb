@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*- #
+# frozen_string_literal: true
 
 module Rouge
   module Lexers
@@ -10,10 +11,6 @@ module Rouge
       filenames '*.erl', '*.hrl'
 
       mimetypes 'text/x-erlang', 'application/x-erlang'
-
-      def self.analyze_text(text)
-        return 0.3 if text =~ /^-module[(]\w+[)][.]/
-      end
 
       keywords = %w(
         after begin case catch cond end fun if

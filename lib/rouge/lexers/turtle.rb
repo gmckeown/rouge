@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*- #
+# frozen_string_literal: true
 
 module Rouge
   module Lexers
@@ -6,66 +7,54 @@ module Rouge
       title "Turtle/TriG"
       desc "Terse RDF Triple Language, TriG"
       tag 'turtle'
-      filenames *%w(*.ttl *.trig)
-      mimetypes *%w(
-        text/turtle
-        application/trig
-      )
-
-      def self.analyze_text(text)
-        start = text[0..1000]
-        return 0.5 if start =~ %r(@prefix\b)
-        return 0.5 if start =~ %r(@base\b)
-        return 0.4 if start =~ %r(PREFIX\b)i
-        return 0.4 if start =~ %r(BASE\b)i
-      end
+      filenames '*.ttl', '*.trig'
+      mimetypes 'text/turtle', 'application/trig'
 
       state :root do
-        rule /@base\b/, Keyword::Declaration
-        rule /@prefix\b/, Keyword::Declaration
-        rule /true\b/, Keyword::Constant
-        rule /false\b/, Keyword::Constant
-        
-        rule /""".*?"""/m, Literal::String
-        rule /"([^"\\]|\\.)*"/, Literal::String
-        rule /'''.*?'''/m, Literal::String
-        rule /'([^'\\]|\\.)*'/, Literal::String
-        
-        rule /#.*$/, Comment::Single
-        
-        rule /@[^\s,.; ]+/, Name::Attribute
-        
-        rule /[+-]?[0-9]+\.[0-9]*E[+-]?[0-9]+/, Literal::Number::Float
-        rule /[+-]?\.[0-9]+E[+-]?[0-9]+/, Literal::Number::Float
-        rule /[+-]?[0-9]+E[+-]?[0-9]+/, Literal::Number::Float
+        rule %r/@base\b/, Keyword::Declaration
+        rule %r/@prefix\b/, Keyword::Declaration
+        rule %r/true\b/, Keyword::Constant
+        rule %r/false\b/, Keyword::Constant
 
-        rule /[+-]?[0-9]*\.[0-9]+?/, Literal::Number::Float
+        rule %r/""".*?"""/m, Literal::String
+        rule %r/"([^"\\]|\\.)*"/, Literal::String
+        rule %r/'''.*?'''/m, Literal::String
+        rule %r/'([^'\\]|\\.)*'/, Literal::String
 
-        rule /[+-]?[0-9]+/, Literal::Number::Integer
+        rule %r/#.*$/, Comment::Single
 
-        rule /\./, Punctuation
-        rule /,/, Punctuation
-        rule /;/, Punctuation
-        rule /\(/, Punctuation
-        rule /\)/, Punctuation
-        rule /\{/, Punctuation
-        rule /\}/, Punctuation
-        rule /\[/, Punctuation
-        rule /\]/, Punctuation
-        rule /\^\^/, Punctuation
-        
-        rule /<[^>]*>/, Name::Label
+        rule %r/@[^\s,.;]+/, Name::Attribute
 
-        rule /base\b/i, Keyword::Declaration
-        rule /prefix\b/i, Keyword::Declaration
-        rule /GRAPH\b/, Keyword
-        rule /a\b/, Keyword
+        rule %r/[+-]?[0-9]+\.[0-9]*E[+-]?[0-9]+/, Literal::Number::Float
+        rule %r/[+-]?\.[0-9]+E[+-]?[0-9]+/, Literal::Number::Float
+        rule %r/[+-]?[0-9]+E[+-]?[0-9]+/, Literal::Number::Float
 
-        rule /\s+/, Text::Whitespace
+        rule %r/[+-]?[0-9]*\.[0-9]+?/, Literal::Number::Float
 
-        rule /[^:;<>#\@"\(\).\[\]\{\} ]+:/, Name::Namespace
-        rule /[^:;<>#\@"\(\).\[\]\{\} ]+/, Name
-        
+        rule %r/[+-]?[0-9]+/, Literal::Number::Integer
+
+        rule %r/\./, Punctuation
+        rule %r/,/, Punctuation
+        rule %r/;/, Punctuation
+        rule %r/\(/, Punctuation
+        rule %r/\)/, Punctuation
+        rule %r/\{/, Punctuation
+        rule %r/\}/, Punctuation
+        rule %r/\[/, Punctuation
+        rule %r/\]/, Punctuation
+        rule %r/\^\^/, Punctuation
+
+        rule %r/<[^>]*>/, Name::Label
+
+        rule %r/base\b/i, Keyword::Declaration
+        rule %r/prefix\b/i, Keyword::Declaration
+        rule %r/GRAPH\b/, Keyword
+        rule %r/a\b/, Keyword
+
+        rule %r/\s+/, Text::Whitespace
+
+        rule %r/[^:;<>#\@"\(\).\[\]\{\} ]+:/, Name::Namespace
+        rule %r/[^:;<>#\@"\(\).\[\]\{\} ]+/, Name
       end
     end
   end

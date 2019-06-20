@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*- #
+# frozen_string_literal: true
 
 module Rouge
   module Formatters
@@ -12,6 +13,8 @@ module Rouge
       end
 
       def span(tok, val)
+        return val if escape?(tok)
+
         safe_span(tok, val.gsub(/[&<>]/, TABLE_FOR_ESCAPE_HTML))
       end
 
@@ -26,7 +29,7 @@ module Rouge
         end
       end
 
-    private
+
       TABLE_FOR_ESCAPE_HTML = {
         '&' => '&amp;',
         '<' => '&lt;',

@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*- #
+# frozen_string_literal: true
 
 # not required by the main lib.
 # to use this module, require 'rouge/cli'.
@@ -13,9 +14,9 @@ module Rouge
     def file
       case input
       when '-'
-        IO.new($stdin.fileno, 'r:utf-8')
+        IO.new($stdin.fileno, 'rt:bom|utf-8')
       when String
-        File.new(input, 'r:utf-8')
+        File.new(input, 'rt:bom|utf-8')
       when ->(i){ i.respond_to? :read }
         input
       end
@@ -44,6 +45,7 @@ module Rouge
       yield %|	help		#{Help.desc}|
       yield %|	style		#{Style.desc}|
       yield %|	list		#{List.desc}|
+      yield %|	guess		#{Guess.desc}|
       yield %|	version		#{Version.desc}|
       yield %||
       yield %|See `rougify help <command>` for more info.|
@@ -66,7 +68,7 @@ module Rouge
       return klass.parse(argv) if klass
 
       case mode
-      when '-h', '--help', 'help', '-help'
+      when '-h', '--help', 'help', '-help', nil
         Help.parse(argv)
       else
         argv.unshift(mode) if mode
@@ -97,6 +99,8 @@ module Rouge
         Style
       when 'list'
         List
+      when 'guess'
+        Guess
       end
     end
 
@@ -169,6 +173,9 @@ module Rouge
         yield %[                            If not provided, rougify will default to]
         yield %[                            terminal256.]
         yield %[]
+        yield %[--theme|-t <theme>          specify the theme to use for highlighting]
+        yield %[                            the file. (only applies to some formatters)]
+        yield %[]
         yield %[--mimetype|-m <mimetype>    specify a mimetype for lexer guessing]
         yield %[]
         yield %[--lexer-opts|-L <opts>      specify lexer options in CGI format]
@@ -176,6 +183,14 @@ module Rouge
         yield %[]
         yield %[--formatter-opts|-F <opts>  specify formatter options in CGI format]
         yield %[                            (opt1=val1&opt2=val2)]
+        yield %[]
+        yield %[--require|-r <filename>     require a filename or library before]
+        yield %[                            highlighting]
+        yield %[]
+        yield %[--escape                    allow the use of escapes between <! and !>]
+        yield %[]
+        yield %[--escape-with <l> <r>       allow the use of escapes between custom]
+        yield %[                            delimiters. implies --escape]
       end
 
       def self.parse(argv)
@@ -186,11 +201,14 @@ module Rouge
           :input_file => '-',
           :lexer_opts => {},
           :formatter_opts => {},
+          :requires => [],
         }
 
         until argv.empty?
           arg = argv.shift
           case arg
+          when '-r', '--require'
+            opts[:requires] << argv.shift
           when '--input-file', '-i'
             opts[:input_file] = argv.shift
           when '--mimetype', '-m'
@@ -205,6 +223,10 @@ module Rouge
             opts[:css_class] = argv.shift
           when '--lexer-opts', '-L'
             opts[:lexer_opts] = parse_cgi(argv.shift)
+          when '--escape'
+            opts[:escape] = ['<!', '!>']
+          when '--escape-with'
+            opts[:escape] = [argv.shift, argv.shift]
           when /^--/
             error! "unknown option #{arg.inspect}"
           else
@@ -231,13 +253,31 @@ module Rouge
         )
       end
 
-      def lexer
-        @lexer ||= lexer_class.new(@lexer_opts)
+      def raw_lexer
+        lexer_class.new(@lexer_opts)
       end
 
-      attr_reader :input_file, :lexer_name, :mimetype, :formatter
+      def escape_lexer
+        Rouge::Lexers::Escape.new(
+          start: @escape[0],
+          end: @escape[1],
+          lang: raw_lexer,
+        )
+      end
+
+      def lexer
+        @lexer ||= @escape ? escape_lexer : raw_lexer
+      end
+
+      attr_reader :input_file, :lexer_name, :mimetype, :formatter, :escape
 
       def initialize(opts={})
+        Rouge::Lexer.enable_debug!
+
+        opts[:requires].each do |r|
+          require r
+        end
+
         @input_file = opts[:input_file]
 
         if opts[:lexer]
@@ -258,16 +298,20 @@ module Rouge
         when 'html-pygments' then Formatters::HTMLPygments.new(Formatters::HTML.new, opts[:css_class])
         when 'html-inline' then Formatters::HTMLInline.new(theme)
         when 'html-table' then Formatters::HTMLTable.new(Formatters::HTML.new)
+        when 'null', 'raw', 'tokens' then Formatters::Null.new
         else
           error! "unknown formatter preset #{opts[:formatter]}"
         end
+
+        @escape = opts[:escape]
       end
 
       def run
+        Formatter.enable_escape! if @escape
         formatter.format(lexer.lex(input), &method(:print))
       end
 
-    private
+    private_class_method
       def self.parse_cgi(str)
         pairs = CGI.parse(str).map { |k, v| [k.to_sym, v.first] }
         Hash[pairs]
@@ -285,7 +329,9 @@ module Rouge
         yield %|usage: rougify style [<theme-name>] [<options>]|
         yield %||
         yield %|Print CSS styles for the given theme.  Extra options are|
-        yield %|passed to the theme.  Theme defaults to thankful_eyes.|
+        yield %|passed to the theme. To select a mode (light/dark) for the|
+        yield %|theme, append '.light' or '.dark' to the <theme-name>|
+        yield %|respectively. Theme defaults to thankful_eyes.|
         yield %||
         yield %|options:|
         yield %|  --scope	(default: .highlight) a css selector to scope by|
@@ -344,17 +390,53 @@ module Rouge
         puts "== Available Lexers =="
 
         Lexer.all.sort_by(&:tag).each do |lexer|
-          desc = "#{lexer.desc}"
+          desc = String.new("#{lexer.desc}")
           if lexer.aliases.any?
             desc << " [aliases: #{lexer.aliases.join(',')}]"
           end
           puts "%s: %s" % [lexer.tag, desc]
+
+          lexer.option_docs.keys.sort.each do |option|
+            puts "  ?#{option}= #{lexer.option_docs[option]}"
+          end
+
           puts
         end
       end
     end
 
-  private
+    class Guess < CLI
+      def self.desc
+        "guess the languages of file"
+      end
+
+      def self.parse(args)
+        new(input_file: args.shift)
+      end
+
+      attr_reader :input_file, :input_source
+
+      def initialize(opts)
+        @input_file = opts[:input_file] || '-'
+        @input_source = FileReader.new(@input_file).read
+      end
+
+      def lexers
+        Lexer.guesses(
+          filename: input_file,
+          source: input_source,
+        )
+      end
+
+      def run
+        lexers.each do |l|
+          puts "{ tag: #{l.tag.inspect}, title: #{l.title.inspect}, desc: #{l.desc.inspect} }"
+        end
+      end
+    end
+
+
+  private_class_method
     def self.normalize_syntax(argv)
       out = []
       argv.each do |arg|

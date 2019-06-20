@@ -1,6 +1,10 @@
+# frozen_string_literal: true
+
 module Rouge
   module Guessers
     class Modeline < Guesser
+      include Util
+
       # [jneen] regexen stolen from linguist
       EMACS_MODELINE = /-\*-\s*(?:(?!mode)[\w-]+\s*:\s*(?:[\w+-]+)\s*;?\s*)*(?:mode\s*:)?\s*([\w+-]+)\s*(?:;\s*(?!mode)[\w-]+\s*:\s*[\w+-]+\s*)*;?\s*-\*-/i
 
@@ -25,17 +29,17 @@ module Rouge
         # don't bother reading the stream if we've already decided
         return lexers if lexers.size == 1
 
-        source_text = @source
-        source_text = source_text.read if source_text.respond_to? :read
+        source_text = get_source(@source)
 
-        lines = source_text.split(/\r?\n/)
+        lines = source_text.split(/\n/)
 
         search_space = (lines.first(@lines) + lines.last(@lines)).join("\n")
 
         matches = MODELINES.map { |re| re.match(search_space) }.compact
+        return lexers unless matches.any?
+        
         match_set = Set.new(matches.map { |m| m[1] })
-
-        lexers.select { |l| (Set.new([l.tag] + l.aliases) & match_set).any? }
+        lexers.select { |l| match_set.include?(l.tag) || l.aliases.any? { |a| match_set.include?(a) } }
       end
     end
   end

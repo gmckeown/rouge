@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require './lib/rouge/version'
 
 Gem::Specification.new do |s|
@@ -14,5 +16,10 @@ Gem::Specification.new do |s|
   s.rubyforge_project = "rouge"
   s.files = Dir['Gemfile', 'LICENSE', 'rouge.gemspec', 'lib/**/*.rb', 'lib/**/*.yml', 'bin/rougify', 'lib/rouge/demos/*']
   s.executables = %w(rougify)
-  s.license = 'MIT, 2-clause BSD'
+  s.licenses = ['MIT', 'BSD-2-Clause']
+  s.required_ruby_version = '>= 2.0'
+  s.metadata = {
+    'source_code_uri' => 'https://github.com/jneen/rouge',
+    'changelog_uri' => 'https://github.com/jneen/rouge/blob/master/CHANGELOG.md'
+  }
 end

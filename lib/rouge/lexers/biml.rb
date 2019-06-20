@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Rouge
   module Lexers
     load_lexer 'xml.rb'
@@ -8,8 +10,8 @@ module Rouge
       tag 'biml'
       filenames '*.biml'
 
-      def self.analyze_text(text)
-        return 1 if text =~ /<\s*Biml\b/
+      def self.detect?(text)
+        return true if text =~ /<\s*Biml\b/
       end
 
       prepend :root do
@@ -24,16 +26,16 @@ module Rouge
       end
 
       state :directive_as_csharp do
-        rule /\s*#>\s*/m, Name::Tag, :pop!
+        rule %r/\s*#>\s*/m, Name::Tag, :pop!
         rule %r(.*?(?=\s*#>\s*))m do
           delegate CSharp
         end
       end
 
       state :directive_tag do
-        rule /\s+/m, Text
-        rule /[\w.:-]+\s*=/m, Name::Attribute, :attr
-        rule /[\w]+\s*/m, Name::Attribute
+        rule %r/\s+/m, Text
+        rule %r/[\w.:-]+\s*=/m, Name::Attribute, :attr
+        rule %r/\w+\s*/m, Name::Attribute
         rule %r(/?\s*#>), Name::Tag, :pop!
       end
     end

@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*- #
+# frozen_string_literal: true
 
 module Rouge
   module Lexers
@@ -13,16 +14,18 @@ module Rouge
                 '*.module', '*.inc', '*.profile', '*.install', '*.test'
       mimetypes 'text/x-php'
 
-      default_options :parent => 'html'
+      option :start_inline, 'Whether to start with inline php or require <?php ... ?>. (default: best guess)'
+      option :funcnamehighlighting, 'Whether to highlight builtin functions (default: true)'
+      option :disabledmodules, 'Disable certain modules from being highlighted as builtins (default: empty)'
 
-      def initialize(opts={})
+      def initialize(*)
+        super
+
         # if truthy, the lexer starts highlighting with php code
         # (no <?php required)
-        @start_inline = opts.delete(:start_inline)
-        @funcnamehighlighting = opts.delete(:funcnamehighlighting) { true }
-        @disabledmodules = opts.delete(:disabledmodules) { [] }
-
-        super(opts)
+        @start_inline = bool_option(:start_inline) { :guess }
+        @funcnamehighlighting = bool_option(:funcnamehighlighting) { true }
+        @disabledmodules = list_option(:disabledmodules)
       end
 
       def self.builtins
@@ -41,12 +44,22 @@ module Rouge
         end
       end
 
-      def start_inline?
-        !!@start_inline
-      end
+      # source: http://php.net/manual/en/language.variables.basics.php
+      # the given regex is invalid utf8, so... we're using the unicode
+      # "Letter" property instead.
+      id = /[\p{L}_][\p{L}\p{N}_]*/
+      nsid = /#{id}(?:\\#{id})*/
 
       start do
-        push :php if start_inline?
+        case @start_inline
+        when true
+          push :template
+          push :php
+        when false
+          push :template
+        when :guess
+          # pass
+        end
       end
 
       def self.keywords
@@ -63,56 +76,64 @@ module Rouge
         )
       end
 
-      def self.analyze_text(text)
-        return 1 if text.shebang?('php')
-        return 0.3 if /<\?(?!xml)/ =~ text
-        0
+      def self.detect?(text)
+        return true if text.shebang?('php')
+        return false if /^<\?hh/ =~ text
+        return true if /^<\?php/ =~ text
       end
 
       state :root do
-        rule /<\?(php|=)?/, Comment::Preproc, :php
+        # some extremely rough heuristics to decide whether to start inline or not
+        rule(/\s*(?=<)/m) { delegate parent; push :template }
+        rule(/[^$]+(?=<\?(php|=))/) { delegate parent; push :template }
+
+        rule(//) { push :template; push :php }
+      end
+
+      state :template do
+        rule %r/<\?(php|=)?/, Comment::Preproc, :php
         rule(/.*?(?=<\?)|.*/m) { delegate parent }
       end
 
       state :php do
-        rule /\?>/, Comment::Preproc, :pop!
+        rule %r/\?>/, Comment::Preproc, :pop!
         # heredocs
-        rule /<<<('?)([a-z_]\w*)\1\n.*?\n\2;?\n/im, Str::Heredoc
-        rule /\s+/, Text
-        rule /#.*?\n/, Comment::Single
-        rule %r(//.*?\n), Comment::Single
+        rule %r/<<<('?)(#{id})\1\n.*?\n\2;?\n/im, Str::Heredoc
+        rule %r/\s+/, Text
+        rule %r/#.*?$/, Comment::Single
+        rule %r(//.*?$), Comment::Single
         # empty comment, otherwise seen as the start of a docstring
         rule %r(/\*\*/), Comment::Multiline
         rule %r(/\*\*.*?\*/)m, Str::Doc
         rule %r(/\*.*?\*/)m, Comment::Multiline
-        rule /(->|::)(\s*)([a-zA-Z_][a-zA-Z0-9_]*)/ do
+        rule %r/(->|::)(\s*)(#{id})/ do
           groups Operator, Text, Name::Attribute
         end
 
-        rule /[~!%^&*+=\|:.<>\/?@-]+/, Operator
-        rule /[\[\]{}();,]/, Punctuation
-        rule /class\b/, Keyword, :classname
+        rule %r/[~!%^&*+=\|:.<>\/?@-]+/, Operator
+        rule %r/[\[\]{}();,]/, Punctuation
+        rule %r/class\b/, Keyword, :classname
         # anonymous functions
-        rule /(function)(\s*)(?=\()/ do
+        rule %r/(function)(\s*)(?=\()/ do
           groups Keyword, Text
         end
 
         # named functions
-        rule /(function)(\s+)(&?)(\s*)/ do
+        rule %r/(function)(\s+)(&?)(\s*)/ do
           groups Keyword, Text, Operator, Text
           push :funcname
         end
 
-        rule /(const)(\s+)([a-zA-Z_]\w*)/i do
+        rule %r/(const)(\s+)(#{id})/i do
           groups Keyword, Text, Name::Constant
         end
 
-        rule /(true|false|null)\b/, Keyword::Constant
-        rule /\$\{\$+[a-z_]\w*\}/i, Name::Variable
-        rule /\$+[a-z_]\w*/i, Name::Variable
+        rule %r/(true|false|null)\b/, Keyword::Constant
+        rule %r/\$\{\$+#{id}\}/i, Name::Variable
+        rule %r/\$+#{id}/i, Name::Variable
 
         # may be intercepted for builtin highlighting
-        rule /[\\a-z_][\\\w]*/i do |m|
+        rule %r/\\?#{nsid}/i do |m|
           name = m[0]
 
           if self.class.keywords.include? name
@@ -124,48 +145,48 @@ module Rouge
           end
         end
 
-        rule /(\d+\.\d*|\d*\.\d+)(e[+-]?\d+)?/i, Num::Float
-        rule /\d+e[+-]?\d+/i, Num::Float
-        rule /0[0-7]+/, Num::Oct
-        rule /0x[a-f0-9]+/i, Num::Hex
-        rule /\d+/, Num::Integer
-        rule /'([^'\\]*(?:\\.[^'\\]*)*)'/, Str::Single
-        rule /`([^`\\]*(?:\\.[^`\\]*)*)`/, Str::Backtick
-        rule /"/, Str::Double, :string
+        rule %r/(\d+\.\d*|\d*\.\d+)(e[+-]?\d+)?/i, Num::Float
+        rule %r/\d+e[+-]?\d+/i, Num::Float
+        rule %r/0[0-7]+/, Num::Oct
+        rule %r/0x[a-f0-9]+/i, Num::Hex
+        rule %r/\d+/, Num::Integer
+        rule %r/'([^'\\]*(?:\\.[^'\\]*)*)'/, Str::Single
+        rule %r/`([^`\\]*(?:\\.[^`\\]*)*)`/, Str::Backtick
+        rule %r/"/, Str::Double, :string
       end
 
       state :classname do
-        rule /\s+/, Text
-        rule /[a-z_][\\\w]*/i, Name::Class, :pop!
+        rule %r/\s+/, Text
+        rule %r/#{nsid}/, Name::Class, :pop!
       end
 
       state :funcname do
-        rule /[a-z_]\w*/i, Name::Function, :pop!
+        rule %r/#{id}/, Name::Function, :pop!
       end
 
       state :string do
-        rule /"/, Str::Double, :pop!
-        rule /[^\\{$"]+/, Str::Double
-        rule /\\([nrt\"$\\]|[0-7]{1,3}|x[0-9A-Fa-f]{1,2})/,
+        rule %r/"/, Str::Double, :pop!
+        rule %r/[^\\{$"]+/, Str::Double
+        rule %r/\\([nrt\"$\\]|[0-7]{1,3}|x[0-9A-Fa-f]{1,2})/,
           Str::Escape
-        rule /\$[a-zA-Z_][a-zA-Z0-9_]*(\[\S+\]|->[a-zA-Z_][a-zA-Z0-9_]*)?/, Name::Variable
+        rule %r/\$#{id}(\[\S+\]|->#{id})?/, Name::Variable
 
-        rule /\{\$\{/, Str::Interpol, :interp_double
-        rule /\{(?=\$)/, Str::Interpol, :interp_single
-        rule /(\{)(\S+)(\})/ do
+        rule %r/\{\$\{/, Str::Interpol, :interp_double
+        rule %r/\{(?=\$)/, Str::Interpol, :interp_single
+        rule %r/(\{)(\S+)(\})/ do
           groups Str::Interpol, Name::Variable, Str::Interpol
         end
 
-        rule /[${\\]+/, Str::Double
+        rule %r/[${\\]+/, Str::Double
       end
 
       state :interp_double do
-        rule /\}\}/, Str::Interpol, :pop!
+        rule %r/\}\}/, Str::Interpol, :pop!
         mixin :php
       end
 
       state :interp_single do
-        rule /\}/, Str::Interpol, :pop!
+        rule %r/\}/, Str::Interpol, :pop!
         mixin :php
       end
     end

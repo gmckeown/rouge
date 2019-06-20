@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*- #
+# frozen_string_literal: true
 
 module Rouge
   class TextAnalyzer < String
@@ -15,6 +16,7 @@ module Rouge
     # This normalizes things so that `text.shebang?('bash')` will detect
     # `#!/bash`, '#!/bin/bash', '#!/usr/bin/env bash', and '#!/bin/bash -x'
     def shebang?(match)
+      return false unless shebang
       match = /\b#{match}(\s|$)/
       match === shebang
     end

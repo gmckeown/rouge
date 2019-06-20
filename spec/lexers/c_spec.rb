@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*- #
+# frozen_string_literal: true
 
 describe Rouge::Lexers::C do
   let(:subject) { Rouge::Lexers::C.new }
@@ -14,6 +15,14 @@ describe Rouge::Lexers::C do
 
     it 'guesses by mimetype' do
       assert_guess :mimetype => 'text/x-csrc'
+    end
+  end
+
+  describe 'lexing' do
+    include Support::Lexing
+
+    it 'recognizes one-line comments not followed by a newline (#796)' do
+      assert_tokens_equal '// comment', ['Comment.Single', '// comment']
     end
   end
 end

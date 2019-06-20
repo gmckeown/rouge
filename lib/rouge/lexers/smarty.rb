@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*- #
+# frozen_string_literal: true
 
 module Rouge
   module Lexers
@@ -9,17 +10,6 @@ module Rouge
       aliases 'smarty'
       filenames '*.tpl', '*.smarty'
       mimetypes 'application/x-smarty', 'text/x-smarty'
-
-      def self.analyze_text(text)
-        rv = 0.0
-        rv += 0.15 if text =~ /\{if\s+.*?\}.*?\{\/if\}/
-        rv += 0.15 if text =~ /\{include\s+file=.*?\}/
-        rv += 0.15 if text =~ /\{foreach\s+.*?\}.*?\{\/foreach\}/
-        rv += 0.01 if text =~ /\{\$.*?\}/
-        return rv
-      end
-
-
 
       def self.builtins
         @builtins ||= %w(
@@ -43,9 +33,9 @@ module Rouge
         rule(/\{\s+/) { delegate parent }
 
         # block comments
-        rule /\{\*.*?\*\}/m, Comment
+        rule %r/\{\*.*?\*\}/m, Comment
 
-        rule /\{\/?(?![\s*])/ do
+        rule %r/\{\/?(?![\s*])/ do
           token Keyword
           push :smarty
         end
@@ -63,21 +53,21 @@ module Rouge
 
       state :smarty do
         # allow nested tags
-        rule /\{\/?(?![\s*])/ do
+        rule %r/\{\/?(?![\s*])/ do
           token Keyword
           push :smarty
         end
 
-        rule /}/, Keyword, :pop!
-        rule /\s+/m, Text
+        rule %r/}/, Keyword, :pop!
+        rule %r/\s+/m, Text
         rule %r([~!%^&*()+=|\[\]:;,.<>/@?-]), Operator
-        rule /#[a-zA-Z_]\w*#/, Name::Variable
-        rule /\$[a-zA-Z_]\w*(\.\w+)*/, Name::Variable
-        rule /(true|false|null)\b/, Keyword::Constant
-	rule /[0-9](\.[0-9]*)?(eE[+-][0-9])?[flFLdD]?|0[xX][0-9a-fA-F]+[Ll]?/, Num
-	rule /"(\\.|.)*?"/, Str::Double
-        rule /'(\\.|.)*?'/, Str::Single
-	rule /([a-zA-Z_]\w*)/ do |m|
+        rule %r/#[a-zA-Z_]\w*#/, Name::Variable
+        rule %r/\$[a-zA-Z_]\w*(\.\w+)*/, Name::Variable
+        rule %r/(true|false|null)\b/, Keyword::Constant
+	rule %r/[0-9](\.[0-9]*)?(eE[+-][0-9])?[flFLdD]?|0[xX][0-9a-fA-F]+[Ll]?/, Num
+	rule %r/"(\\.|.)*?"/, Str::Double
+        rule %r/'(\\.|.)*?'/, Str::Single
+	rule %r/([a-zA-Z_]\w*)/ do |m|
 	  if self.class.builtins.include? m[0]
 	    token Name::Builtin
 	  else

@@ -1,14 +1,12 @@
 # -*- coding: utf-8 -*- #
+# frozen_string_literal: true
 
 require 'rubygems'
 require 'bundler'
 Bundler.require
-
 require 'rouge'
 require 'minitest/spec'
-require 'wrong/adapters/minitest'
-
-Wrong.config[:color] = true
+require 'minitest/autorun'
 
 Token = Rouge::Token
 

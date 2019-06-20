@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*- #
+# frozen_string_literal: true
 
 describe Rouge::Lexers::Make do
   let(:subject) { Rouge::Lexers::Make.new }
@@ -17,9 +18,14 @@ describe Rouge::Lexers::Make do
     it 'guesses by mimetype' do
       assert_guess :mimetype => 'text/x-makefile'
     end
+  end
 
-    it 'guesses by source' do
-      assert_guess :source => '.PHONY: all'
+  describe 'lexing' do
+    include Support::Lexing
+
+    it 'recognizes declarations not terminated by a new line (#694)' do
+      assert_tokens_equal "hello: \n\techo hello",
+       ["Name.Label", "hello"], ["Operator", ":"], ["Text", " \n\t"], ["Name.Builtin", "echo "], ["Text", "hello"]
     end
   end
 end

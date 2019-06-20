@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*- #
+# frozen_string_literal: true
 
 module Support
   module Guessing
@@ -25,10 +26,10 @@ module Support
 
       type ||= subject.class
 
-      deny { Rouge::Lexer.guess(info) == type }
+      refute { Rouge::Lexer.guess(info) == type }
       Rouge::Lexer.all.reverse!
 
-      deny { Rouge::Lexer.guess(info) == type }
+      refute { Rouge::Lexer.guess(info) == type }
       Rouge::Lexer.all.reverse!
     end
   end

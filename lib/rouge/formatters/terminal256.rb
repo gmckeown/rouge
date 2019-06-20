@@ -1,16 +1,25 @@
 # -*- coding: utf-8 -*- #
+# frozen_string_literal: true
 
 module Rouge
   module Formatters
     # A formatter for 256-color terminals
     class Terminal256 < Formatter
+      tag 'terminal256'
+
       # @private
       attr_reader :theme
 
-      # @argument theme
+      # @param [Hash,Rouge::Theme] theme
       #   the theme to render with.
-      def initialize(theme=nil)
-        @theme = theme || Themes::ThankfulEyes
+      def initialize(theme = Themes::ThankfulEyes.new)
+        if theme.is_a?(Rouge::Theme)
+          @theme = theme
+        elsif theme.is_a?(Hash)
+          @theme = theme[:theme] || Themes::ThankfulEyes.new
+        else
+          raise ArgumentError, "invalid theme: #{theme.inspect}"
+        end
       end
 
       def stream(tokens, &b)
@@ -150,6 +159,7 @@ module Rouge
 
     # private
       def escape_sequence(token)
+        return '' if escape?(token)
         @escape_sequences ||= {}
         @escape_sequences[token.qualname] ||=
           EscapeSequence.new(get_style(token))

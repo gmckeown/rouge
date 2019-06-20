@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*- #
+# frozen_string_literal: true
 
 module Rouge
   module Lexers
@@ -12,14 +13,18 @@ module Rouge
       filenames '*.moon'
       mimetypes 'text/x-moonscript', 'application/x-moonscript'
 
-      def initialize(opts={})
-        @function_highlighting = opts.delete(:function_highlighting) { true }
-        @disabled_modules = opts.delete(:disabled_modules) { [] }
-        super(opts)
+      option :function_highlighting, 'Whether to highlight builtin functions (default: true)'
+      option :disabled_modules, 'builtin modules to disable'
+
+      def initialize(*)
+        super
+
+        @function_highlighting = bool_option(:function_highlighting) { true }
+        @disabled_modules = list_option(:disabled_modules)
       end
 
-      def self.analyze_text(text)
-        return 1 if text.shebang? 'moon'
+      def self.detect?(text)
+        return true if text.shebang? 'moon'
       end
 
       def builtins
@@ -35,18 +40,18 @@ module Rouge
 
       state :root do
         rule %r(#!(.*?)$), Comment::Preproc # shebang
-        rule //, Text, :main
+        rule %r//, Text, :main
       end
 
       state :base do
-        ident = '(?:[\w_][\w\d_]*)'
+        ident = '(?:\w\w*)'
 
         rule %r((?i)(\d*\.\d+|\d+\.\d*)(e[+-]?\d+)?'), Num::Float
         rule %r((?i)\d+e[+-]?\d+), Num::Float
         rule %r((?i)0x[0-9a-f]*), Num::Hex
         rule %r(\d+), Num::Integer
         rule %r(@#{ident}*), Name::Variable::Instance
-        rule %r([A-Z][\w\d_]*), Name::Class
+        rule %r([A-Z]\w*), Name::Class
         rule %r("?[^"]+":), Literal::String::Symbol
         rule %r(#{ident}:), Literal::String::Symbol
         rule %r(:#{ident}), Literal::String::Symbol

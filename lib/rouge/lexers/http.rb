@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*- #
+# frozen_string_literal: true
 
 module Rouge
   module Lexers
@@ -53,25 +54,25 @@ module Rouge
       end
 
       state :headers do
-        rule /([^\s:]+)( *)(:)( *)([^\r\n]+)(\r?\n|$)/ do |m|
+        rule %r/([^\s:]+)( *)(:)( *)([^\r\n]+)(\r?\n|$)/ do |m|
           key = m[1]
           value = m[5]
-          if key.strip.downcase == 'content-type'
+          if key.strip.casecmp('content-type').zero?
             @content_type = value.split(';')[0].downcase
           end
 
           groups Name::Attribute, Text, Punctuation, Text, Str, Text
         end
 
-        rule /([^\r\n]+)(\r?\n|$)/ do
+        rule %r/([^\r\n]+)(\r?\n|$)/ do
           groups Str, Text
         end
 
-        rule /\r?\n/, Text, :content
+        rule %r/\r?\n/, Text, :content
       end
 
       state :content do
-        rule /.+/m do |m|
+        rule %r/.+/m do |m|
           delegate(content_lexer)
         end
       end
