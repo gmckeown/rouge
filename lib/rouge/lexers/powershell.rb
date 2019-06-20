@@ -60,7 +60,7 @@ module Rouge
         Test-\w+ Trace-\w+ Unblock-\w+ Undo-\w+ Uninstall-\w+
         Unlock-\w+ Unprotect-\w+ Unpublish-\w+ Unregister-\w+ Update-\w+
         Use-\w+ Wait-\w+ Watch-\w+ Write-\w+
-        Apply-\w+ Begin-\+ End-\w+ Flush-\w+ Resize-\w+ Sort-\w+ Tee-\w+
+        Apply-\w+ Begin-\+ End-\w+ ForEach-\w+ Flush-\w+ Resize-\w+ Sort-\w+ Tee-\w+
         \% \? ac asnp cat cd chdir clc clear
         clhy cli clp cls clv cnsn compare copy cp cpi cpp curl cvpa dbp del diff dir
         dnsn ebp echo epal epcsv epsn erase etsn exsn fc fl foreach ft fw gal gbp gc
